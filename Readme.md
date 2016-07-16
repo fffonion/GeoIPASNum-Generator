@@ -7,7 +7,7 @@ This set of scripts will get ASNs from **bgp.he.net** and generate (legacy) MaxM
 # How to use
 
 1. Run `bash ./new.sh` to generate all ASNum list and save to `asn.txt`.
-2. Start your socks5 proxies from port **60000**, modify **TCNT** in `asn_generator.py` to the proxies you have.
+2. Start your socks5 proxies starting from port **60000** (*60000*, *60001*, ...), modify **TCNT** in `asn_generator.py` to the proxies you have.
 3. Run `python ./asn_generator.py`. This will generate `GeoIPASNumC.csv`
 4. Run `cat GeoIPASNumC.csv |sort -n|uniq > GeoIPASNum1.csv`
 5. Run `python ./asn_sort.py`. This will generate `GeoIPASNum2.csv`
