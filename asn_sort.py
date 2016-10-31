@@ -47,8 +47,8 @@ for p in open("GeoIPASNum1.csv").xreadlines():
     if l >= last[0] and h < last[1]:
         # smaller block, substrate last and write this
         writeln(l, h, combine_desc(de, last[2]))
-        if l > last[0]:
-            pass
+        if l > last[0]: # if it's [<= last =>][<= current =>][<= last =>]
+            writeln(last[0], h, last[2])
         last = [h + 1, last[1], last[2]]
     elif l == last[0] and h > last[1]:
         # bigger block, substrate current and write last
@@ -66,4 +66,3 @@ for p in open("GeoIPASNum1.csv").xreadlines():
 
 writeln(*last)
 f.close()
-
