@@ -14,7 +14,7 @@ from threading import Thread, RLock
 from Queue import Queue, Empty
 
 TCNT = 5
-LCNT = 3
+LCNT = 0
 CACHE_EXPIRE = 5
 
 flock = RLock()
@@ -112,7 +112,7 @@ class ASRun(Thread):
                 return False
             t = open(htmlf).read()
             self._log("load AS%s from file" % asnum)
-        elif self.tid >= TCNT:
+        elif self.tid > TCNT:
             return False
         else:
             time.sleep(1 * random.random())
