@@ -13,7 +13,9 @@ from lxml import etree
 from threading import Thread, RLock
 from Queue import Queue, Empty
 
+# the number of http threads
 TCNT = 5
+# the number of local threads - 1 (0 menas 1 thread)
 LCNT = 0
 CACHE_EXPIRE = 5
 
@@ -109,10 +111,12 @@ class ASRun(Thread):
         htmlf = os.path.join("html", "AS%s.htm" % asnum)
         if os.path.exists(htmlf) and os.path.getsize(htmlf) > 256 and os.stat(htmlf).st_mtime > time.time() - 86400 * CACHE_EXPIRE:
             if self.tid < TCNT:
+                time.sleep(0.1)
                 return False
             t = open(htmlf).read()
             self._log("load AS%s from file" % asnum)
         elif self.tid > TCNT:
+            time.sleep(0.1)
             return False
         else:
             time.sleep(1 * random.random())
