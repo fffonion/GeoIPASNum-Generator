@@ -1,7 +1,17 @@
 import os
 import re
+import sys
 #os.system("cat GeoIPASNumC.csv |sort -n|uniq > GeoIPASNum1.csv")
-f = open("GeoIPASNum2.csv", "w")
+ipv6 = False
+if len(sys.argv) > 1 and sys.argv[1] == "ipv6":
+    ipv6 = True
+    infile = "GeoIPASNum1v6.csv"
+    outfile = "GeoIPASNum2v6.csv"
+else:
+    infile = "GeoIPASNum1.csv"
+    outfile = "GeoIPASNum2.csv"
+
+f = open(outfile, "w")
 last = [float("inf"), 0, ""]
 def combine_desc(s, p):
     asn_p, desc_p = re.findall("(AS\d+)\s([^\"]*?)\"", p)[0]
@@ -20,21 +30,35 @@ def combine_desc(s, p):
         r.append(", ".join(a))
     return "\"%s\"" % "".join(r).strip()
 
+# ipaddr.IPAddress("::FFFF:0:0")._ip
+_v4mappedv6 = 281470681743360
 def writeln(l, h, de):
+    if ipv6:
+        # 1,1 is dummy data and csv2dat checks the first charater to be int
+        # so we feed it with a simplest dummy data
+        fmt = "1,1,%d,%d,%s\n"
+    else:
+        fmt = "%d,%d,%s\n"
     while l < h:
         step = 1
         _ = list(bin(l)[2:])
         while _.pop() == '0' and l + (step << 1) - 1 <= h:
             step = step << 1
-        f.write("%d,%d,%s" % (l, l + step - 1, de))
-        f.write("\n")
+        # ipv4-mapped ipv6 address
+        if ipv6 and l < _v4mappedv6:
+            f.write(fmt % (l + _v4mappedv6, l + _v4mappedv6 + step - 1, de))
+        else:
+            f.write(fmt % (l, l + step - 1, de))
         l += step
     if l == h:
-        f.write("%d,%d,%s" % (l, l, de))
-        f.write("\n")
+        # ipv4-mapped ipv6 address
+        if ipv6 and l < _v4mappedv6:
+            f.write(fmt % (l + _v4mappedv6, l + _v4mappedv6, de))
+        else:
+            f.write(fmt % (l, l, de))
 
 
-for p in open("GeoIPASNum1.csv").xreadlines():
+for p in open(infile).xreadlines():
     if not p.strip():
         continue
     _ = p.split(",")
@@ -66,3 +90,4 @@ for p in open("GeoIPASNum1.csv").xreadlines():
 
 writeln(*last)
 f.close()
+

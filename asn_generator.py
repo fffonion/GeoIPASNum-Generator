@@ -12,6 +12,7 @@ import lxml.html as lhtml
 from lxml import etree
 from threading import Thread, RLock
 from Queue import Queue, Empty
+import ipaddr
 
 # the number of http threads
 TCNT = 5
@@ -24,6 +25,7 @@ plock = RLock()
 slock = RLock()
 taskq = Queue()
 outf = open("GeoIPASNumC.csv", "ab", False)
+outfv6 = open("GeoIPASNumCv6.csv", "ab", False)
 
 if not os.path.exists("html"):
     os.mkdir("html")
@@ -35,6 +37,8 @@ class ASRun(Thread):
         self.headers = {
             "Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             "Accept-Encoding":"gzip, deflate",
+            "Accept-Language":"en,zh-CN;q=0.8,zh;q=0.6",
+            "Cache-Control":"max-age=0",
             "Connection":"keep-alive",
             "DNT":"1",
             "Host":"bgp.he.net",
@@ -102,6 +106,7 @@ class ASRun(Thread):
                 time.sleep(1)
                 if self._term:
                     return ""
+
             #slp += 1
             #slp = min(slp, 20)
         return ""
@@ -120,7 +125,7 @@ class ASRun(Thread):
             return False
         else:
             time.sleep(1 * random.random())
-            t = self.bgpheget("http://bgp.he.net/AS%s" % asnum)
+            t = self.bgpheget("https://bgp.he.net/AS%s" % asnum)
             if not t or len(t) < 256:
                 return False
             open(htmlf, "wb").write(t.encode("utf-8"))
@@ -131,40 +136,60 @@ class ASRun(Thread):
         except IndexError:
             return 'did not return any results' in t
         self._log(basic_name)
-        el_cidr = htmldoc.xpath('//table[@id="table_prefixes4"]/tbody/tr/td/a')
-        el_desc = htmldoc.xpath('//table[@id="table_prefixes4"]/tbody/tr/td[2]')
-        last_cidr_s = float("inf")
-        last_cidr_e = 0 
-        cache = []
-        for i in range(len(el_cidr)):
-            _1, _2, _3, _4, _m = map(int, re.findall("(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)", el_cidr[i].text)[0])
-            _ = (_1<<24) + (_2<<16) +(_3<<8) + _4
-            __e = _ + math.pow(2, (32-_m))-1
-            _s = el_desc[i].text.strip().encode("utf-8")
-            _sc = ''.join(re.findall("([a-zA-Z\d])", _s))
-            _bc = ''.join(re.findall("([a-zA-Z\d])", basic_name))
-            # if _ > last_cidr_s and __e < last_cidr_e :
-            #     continue
-            # elif _ == last_cidr_s and __e > last_cidr_e: #larger block, pop former one
-            #     last_cidr_e = __e
-            #     cache.pop()
-            #     continue
-            # else:
-            #     last_cidr_s = _
-            #     last_cidr_e = __e
-            if _sc != _bc and _sc not in _bc and _sc.strip():
-                desc = "%s, %s" % (_s, basic_name)
-            elif _bc in _sc:
-                desc = _s
+        # i=0 ipv4; i=1 ipv6
+        for ipver in range(2):
+            if ipver == 0:
+                el_cidr = htmldoc.xpath('//table[@id="table_prefixes4"]/tbody/tr/td/a')
+                el_desc = htmldoc.xpath('//table[@id="table_prefixes4"]/tbody/tr/td[2]')
             else:
-                desc = basic_name
-            cache.append((_, __e, asnum, desc.replace("\"", "'")))
+                el_cidr = htmldoc.xpath('//table[@id="table_prefixes6"]/tbody/tr/td/a')
+                el_desc = htmldoc.xpath('//table[@id="table_prefixes6"]/tbody/tr/td[2]')
+            last_cidr_s = float("inf")
+            last_cidr_e = 0 
+            cache = []
+            for i in range(len(el_cidr)):
+                lo_s, mask = re.findall("([a-fA-F\d\.\:]+)/(\d+)", el_cidr[i].text)[0]
+                mask = int(mask)
+                # _1, _2, _3, _4, _m = map(int, re.findall("(\d+)\.(\d+)\.(\d+)\.(\d+)/(\d+)", el_cidr[i].text)[0])
+                # _ = (_1<<24) + (_2<<16) +(_3<<8) + _4
+                if ipver == 0:
+                    lo_n = ipaddr.IPv4Network(lo_s)._ip 
+                    hi_n = lo_n + (2 << (31 - mask)) - 1
+                else:
+                    lo_n = ipaddr.IPv6Network(lo_s)._ip 
+                    hi_n = lo_n + (2 << (127 - mask)) - 1
+                # hi_s = str(ipaddr.IPAddress(hi_n))
 
-        flock.acquire()
-        outf.write("\n".join(["%d,%d,\"AS%s %s\"" % x for x in cache]))
-        outf.write("\n")
-        flock.release()
-        self._log("%d entries for AS%s" % (len(cache), asnum))
+                _s = el_desc[i].text.strip().encode("utf-8")
+                _sc = ''.join(re.findall("([a-zA-Z\d])", _s))
+                _bc = ''.join(re.findall("([a-zA-Z\d])", basic_name))
+                # if _ > last_cidr_s and __e < last_cidr_e :
+                #     continue
+                # elif _ == last_cidr_s and __e > last_cidr_e: #larger block, pop former one
+                #     last_cidr_e = __e
+                #     cache.pop()
+                #     continue
+                # else:
+                #     last_cidr_s = _
+                #     last_cidr_e = __e
+                if _sc != _bc and _sc not in _bc and _sc.strip():
+                    desc = "%s, %s" % (_s, basic_name)
+                elif _bc in _sc:
+                    desc = _s
+                else:
+                    desc = basic_name
+                cache.append((lo_n, hi_n, asnum, desc.replace("\"", "'")))
+                # cache.append((lo_s, hi_s, lo_n, hi_n, asnum, desc.replace("\"", "'")))
+
+            flock.acquire()
+            if ipver == 0:
+                outf.write("\n".join(["%d,%d,\"AS%s %s\"" % x for x in cache]))
+                outf.write("\n")
+            else:
+                outfv6.write("\n".join(["%d,%d,\"AS%s %s\"" % x for x in cache]))
+                outfv6.write("\n")
+            flock.release()
+            self._log("%d IPv%d entries for AS%s" % (len(cache), 4 if ipver==0 else 6, asnum))
         return True
 
     def term(self):
