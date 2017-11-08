@@ -173,7 +173,7 @@ class ASRun(Thread):
                 #     last_cidr_s = _
                 #     last_cidr_e = __e
                 if _sc != _bc and _sc not in _bc and _sc.strip():
-                    desc = "%s, %s" % (_s, basic_name)
+                    desc = "%s##%s" % (_s, basic_name)
                 elif _bc in _sc:
                     desc = _s
                 else:
