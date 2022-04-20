@@ -27,7 +27,7 @@ This set of scripts will get ASNs from **bgp.he.net** and generate (legacy) MaxM
 
 # Demo
 
-https://ipip.tk
+https://cidr.me
 
 https://bgp-he-net.github.io/AS\d+.htm
 
