@@ -44,7 +44,7 @@ class ASRun(Thread):
             "Host":"bgp.he.net",
             "User-Agent":"Mozilla/5.0 (NT 6.2; AppleWebKit/535.23 (KHTML, like Gecko) Chrome/52.10.6154.12 Safari/535.23",
         }
-        self.proxies = dict(http = 'socks5://127.0.0.1:%d' % proxy_port, https = 'socks5://127.0.0.1:%d' % proxy_port)
+        self.proxies = dict(http = 'socks5h://127.0.0.1:%d' % proxy_port, https = 'socks5h://127.0.0.1:%d' % proxy_port)
         self.req = requests.Session()
         self.tid = tid
         self._term = False
@@ -90,16 +90,23 @@ class ASRun(Thread):
                 c = self.http_get(url)
             except Exception as ex:
                 self._log("exception: %s" % ex)
+                return ""
             else:
                 self.mkcookie(c.headers.get("set-cookie") or "")
                 if c.status_code == 302:
                     if "resourceerror" in c.text:
                         self._log("wait 6h")
-                    elif not self.ccbypass():
-                        self._log("can't acquire session cookies, abort")
                     else:
-                        c = self.http_get(url)
-                        return c.text
+                        try:
+                            if self.ccbypass():
+                                c = self.http_get(url)
+                                return c.text
+                        except Exception as ex:
+                            self._log("can't acquire session cookies: %s, abort" % str(ex))
+                            self.req = requests.Session()
+                            return ""
+                        self._log("can't acquire session cookies, abort")
+                        return ""
                 else:
                     return c.text
             for i in range(16000 + random.randrange(0, 2000)):

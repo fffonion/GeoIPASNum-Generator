@@ -57,7 +57,7 @@ _v4mappedv6 = 281470681743360
 def writeln(l, h, de):
     # keep order, put shorter asn block first
     de = sorted(de, key = lambda x:x[1])
-    de = "\"%s\"" % "; ".join(map(lambda x:x[0], de)).strip().replace("##", ", ")
+    de = "\"%s\"" % "; ".join([x[0] for x in de]).strip().replace("##", ", ")
     if ipv6:
         # 1,1 is dummy data and csv2dat checks the first charater to be int
         # so we feed it with a simplest dummy data
@@ -83,7 +83,7 @@ def writeln(l, h, de):
             f.write(fmt % (l, l, de))
 
 
-for p in open(infile).xreadlines():
+for p in open(infile):
     if not p.strip():
         continue
     _ = p.split(",")
