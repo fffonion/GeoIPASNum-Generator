@@ -1,7 +1,7 @@
 #!/bin/bash
 pushd .
 cd /tmp
-wget http://download.maxmind.com/download/geoip/database/asnum/GeoIPASNum2.zip -O /tmp/GeoIPASNum2.zip
+wget https://download.maxmind.com/download/geoip/database/asnum/GeoIPASNum2.zip -O /tmp/GeoIPASNum2.zip
 unzip GeoIPASNum2.zip
 popd
 cat /tmp/GeoIPASNum2.csv |grep -aoP "AS\d+"|grep -aoP "\d+"|sort|uniq > asn.txt
